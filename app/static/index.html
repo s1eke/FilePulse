@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FilePulse - Secure File Sharing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>📁 FilePulse</h1>
+            <p class="subtitle">Secure file sharing with automatic 7-day expiry</p>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">☁️</div>
+                <div class="upload-text">Drop your file here or click to browse</div>
+                <div class="upload-hint">Maximum file size: 100MB</div>
+            </div>
+            
+            <input type="file" id="fileInput" accept="*/*">
+            
+            <button class="btn" id="uploadBtn" style="display: none;">
+                Upload File
+            </button>
+            
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-stats">
+                    <div class="stat">
+                        <div class="stat-label">Progress</div>
+                        <div class="stat-value" id="progressPercent">0%</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Speed</div>
+                        <div class="stat-value" id="uploadSpeed">0 MB/s</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Time Left</div>
+                        <div class="stat-value" id="timeRemaining">--:--</div>
+                    </div>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+            </div>
+            
+            <div class="result-container" id="resultContainer">
+                <div class="share-code-box">
+                    <div class="share-code-label">Your Share Code</div>
+                    <div class="share-code" id="shareCode">--------</div>
+                </div>
+                
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">File Name</div>
+                        <div class="info-value" id="fileName">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">File Size</div>
+                        <div class="info-value" id="fileSize">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Expiry Date</div>
+                        <div class="info-value" id="expiryDate">-</div>
+                    </div>
+                </div>
+                
+                <button class="copy-btn" id="copyBtn">
+                    📋 Copy Share Link
+                </button>
+                
+                <button class="btn" id="newUploadBtn" style="margin-top: 15px;">
+                    Upload Another File
+                </button>
+            </div>
+            
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+    </div>
+    
+    <script src="/upload.js"></script>
+</body>
+</html>
