@@ -20,7 +20,11 @@ class FileCleanupScheduler:
         self.scheduler = AsyncIOScheduler()
     
     async def cleanup_expired_files(self):
-        """Remove expired files from database and filesystem."""
+        """Remove expired files from database and filesystem.
+        
+        With MD5 deduplication, only delete physical file if no other
+        active shares reference the same file.
+        """
         logger.info("Starting expired file cleanup task")
         
         async with AsyncSessionLocal() as session:
@@ -32,24 +36,43 @@ class FileCleanupScheduler:
                 expired_files = result.scalars().all()
                 
                 deleted_count = 0
+                files_to_delete = set()  # Track unique file paths to delete
+                
                 for file_record in expired_files:
                     try:
-                        # Delete physical file
-                        file_path = Path(file_record.file_path)
-                        if file_path.exists():
-                            file_path.unlink()
-                            logger.info(f"Deleted expired file: {file_path}")
+                        # Check if other non-expired records share the same file
+                        stmt_check = select(FileRecord).where(
+                            FileRecord.file_md5 == file_record.file_md5,
+                            FileRecord.expiry_time >= now,
+                            FileRecord.id != file_record.id
+                        )
+                        check_result = await session.execute(stmt_check)
+                        other_shares = check_result.scalars().first()
                         
-                        # Delete database record
+                        # Only mark for physical deletion if no other shares exist
+                        if not other_shares:
+                            files_to_delete.add(file_record.file_path)
+                        
+                        # Always delete the database record
                         await session.delete(file_record)
                         deleted_count += 1
                         
                     except Exception as e:
-                        logger.error(f"Error deleting file {file_record.filename}: {e}")
+                        logger.error(f"Error processing file {file_record.filename}: {e}")
                         continue
                 
+                # Delete physical files
+                for file_path in files_to_delete:
+                    try:
+                        file_path_obj = Path(file_path)
+                        if file_path_obj.exists():
+                            file_path_obj.unlink()
+                            logger.info(f"Deleted physical file: {file_path}")
+                    except Exception as e:
+                        logger.error(f"Error deleting physical file {file_path}: {e}")
+                
                 await session.commit()
-                logger.info(f"Cleanup completed. Deleted {deleted_count} expired files")
+                logger.info(f"Cleanup completed. Deleted {deleted_count} expired records, {len(files_to_delete)} physical files")
                 
             except Exception as e:
                 logger.error(f"Error during file cleanup: {e}")

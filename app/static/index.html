@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,80 +8,196 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script>
+        // Server configuration injected via Jinja2
+        window.APP_CONFIG = {
+            maxFileSize: {{ max_file_size }},
+        fileExpiryDays: {{ file_expiry_days }}
+        };
+    </script>
 </head>
+
 <body>
     <div class="container">
         <div class="card">
             <h1>📁 FilePulse</h1>
             <p class="subtitle">Secure file sharing with automatic 7-day expiry</p>
-            
-            <div class="upload-area" id="uploadArea">
-                <div class="upload-icon">☁️</div>
-                <div class="upload-text">Drop your file here or click to browse</div>
-                <div class="upload-hint">Maximum file size: 100MB</div>
+
+            <!-- Mode Toggle -->
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <button class="btn btn-secondary" id="uploadModeBtn" style="flex: 1;">Upload File</button>
+                <button class="btn btn-secondary" id="downloadModeBtn" style="flex: 1;">Download File</button>
             </div>
-            
-            <input type="file" id="fileInput" accept="*/*">
-            
-            <button class="btn" id="uploadBtn" style="display: none;">
-                Upload File
-            </button>
-            
-            <div class="progress-container" id="progressContainer">
-                <div class="progress-stats">
-                    <div class="stat">
-                        <div class="stat-label">Progress</div>
-                        <div class="stat-value" id="progressPercent">0%</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Speed</div>
-                        <div class="stat-value" id="uploadSpeed">0 MB/s</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Time Left</div>
-                        <div class="stat-value" id="timeRemaining">--:--</div>
-                    </div>
+
+            <!-- Upload Mode -->
+            <div id="uploadMode">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">☁️</div>
+                    <div class="upload-text">Drop your file here or click to browse</div>
+                    <div class="upload-hint">Maximum file size: {{ "%.0f"|format(max_file_size / 1024 / 1024) }}MB</div>
                 </div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar" id="progressBar"></div>
-                </div>
-            </div>
-            
-            <div class="result-container" id="resultContainer">
-                <div class="share-code-box">
-                    <div class="share-code-label">Your Share Code</div>
-                    <div class="share-code" id="shareCode">--------</div>
-                </div>
-                
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">File Name</div>
-                        <div class="info-value" id="fileName">-</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">File Size</div>
-                        <div class="info-value" id="fileSize">-</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Expiry Date</div>
-                        <div class="info-value" id="expiryDate">-</div>
-                    </div>
-                </div>
-                
-                <button class="copy-btn" id="copyBtn">
-                    📋 Copy Share Link
+
+                <input type="file" id="fileInput" accept="*/*">
+
+                <button class="btn" id="uploadBtn" style="display: none;">
+                    Upload File
                 </button>
-                
-                <button class="btn" id="newUploadBtn" style="margin-top: 15px;">
-                    Upload Another File
-                </button>
+
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-stats">
+                        <div class="stat">
+                            <div class="stat-label">Progress</div>
+                            <div class="stat-value" id="progressPercent">0%</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Speed</div>
+                            <div class="stat-value" id="uploadSpeed">0 MB/s</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Time Left</div>
+                            <div class="stat-value" id="timeRemaining">--:--</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                </div>
+
+                <div class="result-container" id="resultContainer">
+                    <div class="share-code-box">
+                        <div class="share-code-label">您的分享码（点击复制）</div>
+                        <div class="share-code" id="shareCode">--------</div>
+                        <div style="font-size: 0.85rem; margin-top: 10px; opacity: 0.8;">
+                            点击上方分享码即可复制
+                        </div>
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">File Name</div>
+                            <div class="info-value" id="fileName">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">File Size</div>
+                            <div class="info-value" id="fileSize">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Expiry Date</div>
+                            <div class="info-value" id="expiryDate">-</div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="btn" id="newUploadBtn" style="margin-top: 15px; flex: 1;">
+                            Upload Another File
+                        </button>
+                        <button class="copy-link-btn" id="copyBtn" style="margin-top: 15px;">
+                            📋 复制分享链接
+                        </button>
+                    </div>
+                </div>
             </div>
-            
+
+            <!-- Download Mode -->
+            <div id="downloadMode" style="display: none;">
+                <div style="margin-bottom: 20px;">
+                    <input type="text" id="shareCodeInput" placeholder="Enter share code" style="
+                            width: 100%;
+                            padding: 15px;
+                            background: rgba(0, 0, 0, 0.02);
+                            border: 2px solid rgba(0, 0, 0, 0.1);
+                            border-radius: 12px;
+                            color: #1d1d1f;
+                            font-size: 1.1rem;
+                            text-align: center;
+                            letter-spacing: 2px;
+                            font-family: 'Courier New', monospace;
+                        ">
+                </div>
+                <button class="btn" id="fetchBtn">
+                    Get File Info
+                </button>
+
+                <div class="result-container" id="fileInfoSection">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">File Name</div>
+                            <div class="info-value" id="downloadFileName">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">File Size</div>
+                            <div class="info-value" id="downloadFileSize">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Expires On</div>
+                            <div class="info-value" id="downloadExpiryDate">-</div>
+                        </div>
+                    </div>
+
+                    <button class="btn" id="downloadBtn">
+                        ⬇️ Download File
+                    </button>
+
+                    <div class="progress-container" id="downloadProgressContainer">
+                        <div class="progress-stats">
+                            <div class="stat">
+                                <div class="stat-label">Progress</div>
+                                <div class="stat-value" id="downloadProgressPercent">0%</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Speed</div>
+                                <div class="stat-value" id="downloadSpeed">0 MB/s</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Time Left</div>
+                                <div class="stat-value" id="downloadTimeRemaining">--:--</div>
+                            </div>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar" id="downloadProgressBar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="error-message" id="errorMessage"></div>
         </div>
     </div>
-    
-    <script src="/upload.js"></script>
+
+    <script src="/static/upload.js"></script>
+    <script src="/static/download-inline.js"></script>
+    <script>
+        // Mode switching
+        const uploadMode = document.getElementById('uploadMode');
+        const downloadMode = document.getElementById('downloadMode');
+        const uploadModeBtn = document.getElementById('uploadModeBtn');
+        const downloadModeBtn = document.getElementById('downloadModeBtn');
+
+        function showUploadMode() {
+            uploadMode.style.display = 'block';
+            downloadMode.style.display = 'none';
+            uploadModeBtn.style.background = 'var(--accent-blue)';
+            uploadModeBtn.style.color = 'white';
+            downloadModeBtn.style.background = 'transparent';
+            downloadModeBtn.style.color = 'var(--accent-blue)';
+        }
+
+        function showDownloadMode() {
+            uploadMode.style.display = 'none';
+            downloadMode.style.display = 'block';
+            downloadModeBtn.style.background = 'var(--accent-blue)';
+            downloadModeBtn.style.color = 'white';
+            uploadModeBtn.style.background = 'transparent';
+            uploadModeBtn.style.color = 'var(--accent-blue)';
+        }
+
+        uploadModeBtn.addEventListener('click', showUploadMode);
+        downloadModeBtn.addEventListener('click', showDownloadMode);
+
+        // Default to upload mode
+        showUploadMode();
+    </script>
 </body>
+
 </html>

@@ -8,7 +8,7 @@ from app.config import settings
 
 
 class FileRecord(Base):
-    """Model for uploaded file records."""
+    """Model for uploaded file records with MD5 deduplication support."""
     
     __tablename__ = "file_records"
     
@@ -21,10 +21,12 @@ class FileRecord(Base):
     expiry_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    file_md5: Mapped[str] = mapped_column(String(32), nullable=False, index=True)  # MD5 hash
     
-    # Index on expiry_time for efficient cleanup queries
+    # Index on MD5 for duplicate detection and expiry_time for cleanup
     __table_args__ = (
         Index('idx_expiry_time', 'expiry_time'),
+        Index('idx_file_md5', 'file_md5'),
     )
     
     def __init__(self, **kwargs):

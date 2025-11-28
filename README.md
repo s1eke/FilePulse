@@ -4,14 +4,17 @@ A modern, secure file sharing web application built with FastAPI and Python 3.13
 
 ## ✨ Features
 
-- **Secure File Upload**: Drag-and-drop or click to upload files (up to 100MB)
+- **Secure File Upload**: Drag-and-drop or click to upload files (up to 100MB by default)
 - **Real-Time Progress**: Live upload/download progress with speed and ETA
 - **Share Codes**: 8-character unique codes for easy file sharing
-- **Automatic Expiry**: Files automatically deleted after 7 days
+- **MD5 Deduplication**: Automatically detects and reuses duplicate files to save storage
+- **Automatic Expiry**: Files automatically deleted after 7 days (or when last share expires)
 - **XSS Protection**: Comprehensive filename sanitization
-- **Modern UI**: Glassmorphism design with dark mode
+- **Modern UI**: Apple-style silver/white design with glassmorphism
+- **Unified Interface**: Upload and download on the same page
 - **Mobile Responsive**: Optimized for all screen sizes
 - **Background Cleanup**: Automatic scheduled deletion of expired files
+- **Flexible File Size Limits**: Support for MB/GB units (e.g., "100MB", "2GB")
 - **RESTful API**: Well-documented FastAPI endpoints
 
 ## 🛠️ Technology Stack
@@ -74,7 +77,7 @@ Environment variables can be set in a `.env` file or passed directly:
 |----------|-------------|---------|
 | `UPLOAD_DIR` | Directory for uploaded files | `./uploads` |
 | `DATABASE_URL` | SQLite database connection URL | `sqlite+aiosqlite:///./filepulse.db` |
-| `MAX_FILE_SIZE` | Maximum file size in bytes | `104857600` (100MB) |
+| `MAX_FILE_SIZE` | Maximum file size (supports MB/GB units) | `100MB` |
 | `ENABLE_DOCS` | Enable Swagger UI documentation | `false` |
 | `FILE_EXPIRY_DAYS` | Days before files expire | `7` |
 | `HOST` | Server host | `0.0.0.0` |
@@ -83,7 +86,7 @@ Environment variables can be set in a `.env` file or passed directly:
 **Example `.env` file**:
 ```env
 UPLOAD_DIR=./uploads
-MAX_FILE_SIZE=104857600
+MAX_FILE_SIZE=500MB  # Supports: 100MB, 1GB, 2.5GB, etc.
 ENABLE_DOCS=true
 FILE_EXPIRY_DAYS=7
 ```
@@ -112,23 +115,25 @@ FilePulse/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py              # FastAPI application entry point
-│   ├── config.py            # Configuration management
+│   ├── config.py            # Configuration with MB/GB unit support
 │   ├── database.py          # Database setup and session management
-│   ├── models.py            # SQLAlchemy models
+│   ├── models.py            # SQLAlchemy models (FileRecord with MD5)
 │   ├── routers/
 │   │   ├── __init__.py
-│   │   ├── upload.py        # Upload endpoints
+│   │   ├── upload.py        # Upload with MD5 deduplication
 │   │   └── download.py      # Download endpoints
 │   ├── utils/
 │   │   ├── __init__.py
 │   │   ├── security.py      # XSS protection, share code generation
-│   │   └── scheduler.py     # Background file cleanup
+│   │   ├── file_utils.py    # MD5 calculation utilities
+│   │   └── scheduler.py     # Background file cleanup with dedup support
 │   └── static/
-│       ├── index.html       # Upload page
-│       ├── download.html    # Download page
-│       ├── styles.css       # Global styles
+│       ├── index.html       # Unified upload/download page
+│       ├── download.html    # Standalone download page
+│       ├── styles.css       # Apple-style silver/white theme
 │       ├── upload.js        # Upload functionality
-│       └── download.js      # Download functionality
+│       ├── download.js      # Download functionality
+│       └── download-inline.js  # Download for unified page
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py          # Test fixtures
@@ -145,21 +150,82 @@ FilePulse/
 └── README.md
 ```
 
+## 🗄️ Database Schema
+
+### FileRecord Table
+
+The `file_records` table stores metadata for all uploaded files:
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | INTEGER | PRIMARY KEY, AUTOINCREMENT | Unique record ID |
+| `filename` | VARCHAR(255) | NOT NULL | Stored filename (with timestamp and share code) |
+| `original_filename` | VARCHAR(255) | NOT NULL | User's original filename (sanitized) |
+| `share_code` | VARCHAR(8) | UNIQUE, NOT NULL, INDEXED | 8-character alphanumeric share code |
+| `uploader_ip` | VARCHAR(45) | NOT NULL | IP address of uploader (supports IPv6) |
+| `upload_time` | DATETIME | NOT NULL | UTC timestamp of upload |
+| `expiry_time` | DATETIME | NOT NULL, INDEXED | Auto-calculated expiry (upload_time + 7 days) |
+| `file_path` | VARCHAR(512) | NOT NULL | Physical file path on server |
+| `file_size` | INTEGER | NOT NULL | File size in bytes |
+| `file_md5` | VARCHAR(32) | NOT NULL, INDEXED | MD5 hash of file content |
+
+**Indexes**:
+- `idx_share_code`: On `share_code` (automatic via UNIQUE constraint)
+- `idx_expiry_time`: On `expiry_time` for efficient cleanup queries
+- `idx_file_md5`: On `file_md5` for duplicate detection
+
+**MD5 Deduplication**:
+- When a file is uploaded, its MD5 hash is calculated
+- If a file with the same MD5 exists, the new share reuses the existing file path
+- Multiple `FileRecord` entries can point to the same physical file
+- The physical file is only deleted when ALL shares pointing to it have expired
+- Each share has its own unique `share_code` and `expiry_time`
+
+**Example Records**:
+
+```sql
+-- Two users upload the same file, creating two share codes but one physical file
+INSERT INTO file_records VALUES (
+  1, '1732800000000_Abc123XY_document.pdf', 'document.pdf', 'Abc123XY',
+  '192.168.1.100', '2024-01-01 12:00:00', '2024-01-08 12:00:00',
+  '/uploads/2024/01/01/1732800000000_Abc123XY_document.pdf', 1024000,
+  '5d41402abc4b2a76b9719d911017c592'
+);
+
+INSERT INTO file_records VALUES (
+  2, '1732800000000_Abc123XY_document.pdf', 'report.pdf', 'Def456ZW',
+  '192.168.1.101', '2024-01-02 15:30:00', '2024-01-09 15:30:00',
+  '/uploads/2024/01/01/1732800000000_Abc123XY_document.pdf', 1024000,
+  '5d41402abc4b2a76b9719d911017c592'  -- Same MD5 hash
+);
+```
+
+In this example, both shares reference the same physical file, but the file will only be deleted after 2024-01-09 15:30:00 (when the last share expires).
+
 ## 🔒 Security Features
 
 ### XSS Protection
 
 All filenames are sanitized to prevent cross-site scripting attacks:
 - HTML tags removed
-- Special characters escaped
+- Dangerous characters filtered (< > : " / \ | ? *)
 - Path traversal attempts blocked
-- SQL injection patterns filtered
+- Control characters removed
 
 ### File Storage
 
 - Files stored in date-based directory structure (`YYYY/MM/DD`)
 - Unique timestamps prevent filename collisions
 - Original filenames preserved for download
+- **MD5 deduplication**: Duplicate files share the same physical storage
+
+### MD5 Deduplication
+
+- Each uploaded file's MD5 hash is calculated
+- Files with identical content are stored only once
+- Multiple share codes can reference the same physical file
+- Storage-efficient: Same file uploaded 100 times = stored once
+- Smart cleanup: Physical file deleted only when ALL shares expire
 
 ### Share Codes
 
@@ -306,19 +372,30 @@ FILE_EXPIRY_DAYS=14
 ### Uploading Files
 
 1. Visit the homepage at `http://localhost:8000`
-2. Drag and drop a file or click to browse
-3. Click "Upload File"
-4. Watch real-time progress (speed, percentage, ETA)
-5. Receive your unique 8-character share code
-6. Copy the share link to share with others
+2. Ensure "Upload File" mode is selected
+3. Drag and drop a file or click to browse
+4. Click "Upload File"
+5. Watch real-time progress (speed, percentage, ETA)
+6. Receive your unique 8-character share code
+7. Copy the share link to share with others
+
+**Note**: If you upload a file that was previously uploaded (same content), FilePulse will automatically detect it using MD5 hash and reuse the existing file, saving storage space.
 
 ### Downloading Files
 
-1. Visit `http://localhost:8000/download.html` or use the shared link
-2. Enter the share code
-3. Click "Get File Info" to view file details
-4. Click "Download File" to start download
-5. Monitor real-time download progress
+**Option 1: Using Share Link**
+1. Open the shared link (e.g., `http://localhost:8000/download.html?code=Abc123XY`)
+2. File info is displayed automatically
+3. Click "Download File"
+4. Monitor real-time download progress
+
+**Option 2: On Homepage**
+1. Visit `http://localhost:8000`
+2. Click "Download File" button to switch modes
+3. Enter the share code
+4. Click "Get File Info" to view file details
+5. Click "Download File" to start download
+6. Monitor real-time download progress
 
 ## 🤝 Contributing
 

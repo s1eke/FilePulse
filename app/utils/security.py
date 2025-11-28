@@ -22,24 +22,29 @@ def sanitize_filename(filename: str) -> str:
     # Remove path components
     filename = Path(filename).name
     
-    # Remove or replace dangerous characters
-    # Keep only alphanumeric, dots, hyphens, underscores, and spaces
-    filename = re.sub(r'[^\w\s\-\.]', '', filename)
+    # Remove dangerous characters but keep safe ones
+    # Remove: <, >, :, ", /, \, |, ?, *, and other control characters
+    # Keep: letters, numbers, spaces, dots, hyphens, underscores, parentheses
+    filename = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', filename)
     
-    # Replace multiple spaces/underscores with single one
-    filename = re.sub(r'[\s_]+', '_', filename)
+    # Replace multiple spaces with single space
+    filename = re.sub(r'\s+', ' ', filename)
     
-    # Remove leading/trailing dots and spaces
-    filename = filename.strip('. ')
+    # Remove leading/trailing dots, spaces, and hyphens
+    filename = filename.strip('. -')
     
-    # Limit length
+    # Limit length while preserving extension
     if len(filename) > 255:
-        name_part = filename[:200]
-        ext_part = filename[200:255] if '.' in filename[200:] else ''
-        filename = name_part + ext_part
+        parts = filename.rsplit('.', 1)
+        if len(parts) == 2:
+            name, ext = parts
+            max_name_len = 255 - len(ext) - 1
+            filename = name[:max_name_len] + '.' + ext
+        else:
+            filename = filename[:255]
     
     # Fallback if filename becomes empty
-    if not filename:
+    if not filename or filename.isspace():
         filename = "unnamed_file"
     
     return filename

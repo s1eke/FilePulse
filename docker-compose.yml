@@ -12,24 +12,24 @@ services:
       # Application settings
       - UPLOAD_DIR=/app/uploads
       - DATABASE_URL=sqlite+aiosqlite:///./data/filepulse.db
-      - MAX_FILE_SIZE=104857600
+      - MAX_FILE_SIZE=500MB
       - ENABLE_DOCS=${ENABLE_DOCS:-false}
-      
+
       # File expiry
       - FILE_EXPIRY_DAYS=7
-      
+
       # Server settings
       - HOST=0.0.0.0
       - PORT=8000
     volumes:
       # Persist uploaded files
       - ./uploads:/app/uploads
-      
+
       # Persist database
       - ./data:/app/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
       interval: 30s
       timeout: 3s
       retries: 3

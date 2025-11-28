@@ -39,10 +39,12 @@ fileInput.addEventListener('change', (e) => {
 });
 
 function handleFileSelect(file) {
-    const maxSize = 100 * 1024 * 1024; // 100MB
+    // Use injected config or default to 100MB if not available
+    const config = window.APP_CONFIG || { maxFileSize: 100 * 1024 * 1024 };
 
-    if (file.size > maxSize) {
-        showError('File size exceeds 100MB limit');
+    if (file.size > config.maxFileSize) {
+        const sizeMB = Math.round(config.maxFileSize / (1024 * 1024));
+        showError(`File size exceeds ${sizeMB}MB limit`);
         return;
     }
 
@@ -58,7 +60,11 @@ async function uploadFile() {
     if (!selectedFile) return;
 
     hideError();
-    uploadBtn.disabled = true;
+
+    // Hide upload controls
+    uploadBtn.style.display = 'none';
+    uploadArea.style.display = 'none';
+
     progressContainer.classList.add('active');
     resultContainer.classList.remove('active');
 
@@ -135,6 +141,11 @@ function displayResult(data) {
 
     // Store share code for copy functionality
     copyBtn.setAttribute('data-share-code', data.share_code);
+
+    // Enable click-to-copy
+    const shareCodeEl = document.getElementById('shareCode');
+    shareCodeEl.style.cursor = 'pointer';
+    shareCodeEl.title = '点击复制分享码';
 }
 
 copyBtn.addEventListener('click', () => {
@@ -143,24 +154,92 @@ copyBtn.addEventListener('click', () => {
 
     navigator.clipboard.writeText(shareUrl).then(() => {
         const originalText = copyBtn.textContent;
-        copyBtn.textContent = '✓ Copied!';
+        copyBtn.textContent = '✓ 已复制链接！';
         setTimeout(() => {
             copyBtn.textContent = originalText;
         }, 2000);
+        showToast('✓ 链接已复制！');
+    }).catch(() => {
+        showError('复制失败，请手动复制');
     });
 });
+
+// Add click-to-copy for share code
+document.getElementById('shareCode').addEventListener('click', function () {
+    const shareCode = this.textContent;
+    if (shareCode && shareCode !== '--------') {
+        navigator.clipboard.writeText(shareCode).then(() => {
+            showToast('✓ 分享码已复制！');
+        }).catch(() => {
+            showError('复制失败');
+        });
+    }
+});
+
+// Show pointer cursor on hover for share code
+const shareCodeEl = document.getElementById('shareCode');
+// Cursor is managed by displayResult and resetUpload
+
+
+// Toast notification function
+function showToast(message) {
+    // Remove existing toast if any
+    const existingToast = document.querySelector('.toast-notification');
+    if (existingToast) {
+        existingToast.remove();
+    }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // Trigger animation
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Remove after 2 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
 
 newUploadBtn.addEventListener('click', () => {
     resetUpload();
     resultContainer.classList.remove('active');
     uploadArea.querySelector('.upload-text').textContent = 'Drop your file here or click to browse';
-    uploadArea.querySelector('.upload-hint').textContent = 'Maximum file size: 100MB';
+
+    const config = window.APP_CONFIG || { maxFileSizeMB: 100 };
+    const limitMB = config.maxFileSizeMB || Math.round(config.maxFileSize / (1024 * 1024));
+    uploadArea.querySelector('.upload-hint').textContent = `Maximum file size: ${limitMB}MB`;
+
     selectedFile = null;
     fileInput.value = '';
 });
 
 function resetUpload() {
+    // Reset UI visibility
+    uploadArea.style.display = 'block';
+
+    // Reset buttons
     uploadBtn.disabled = false;
+    uploadBtn.style.display = 'none';
+
+    // Reset copy button
+    copyBtn.textContent = '📋 复制链接';
+    copyBtn.removeAttribute('data-share-code');
+
+    // Reset share code display
+    document.getElementById('shareCode').textContent = '--------';
+    document.getElementById('shareCode').style.cursor = 'default';
+
+    // Reset file info
+    document.getElementById('fileName').textContent = '-';
+    document.getElementById('fileSize').textContent = '-';
+    document.getElementById('expiryDate').textContent = '-';
+
+    // Reset progress
     progressContainer.classList.remove('active');
     document.getElementById('progressBar').style.width = '0%';
     document.getElementById('progressPercent').textContent = '0%';
