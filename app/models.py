@@ -15,7 +15,7 @@ class FileRecord(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    share_code: Mapped[str] = mapped_column(String(8), unique=True, nullable=False, index=True)
+    share_code: Mapped[str] = mapped_column(String(6), unique=True, nullable=False, index=True)
     uploader_ip: Mapped[str] = mapped_column(String(45), nullable=False)  # IPv6 max length
     upload_time: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     expiry_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)

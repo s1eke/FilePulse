@@ -67,7 +67,7 @@ def test_sanitize_filename_truncates_long_names():
 def test_generate_share_code_length():
     """Test that share codes have correct length."""
     code = generate_share_code()
-    assert len(code) == 8
+    assert len(code) == 6
     
     code = generate_share_code(12)
     assert len(code) == 12

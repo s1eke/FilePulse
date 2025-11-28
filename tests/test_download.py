@@ -63,7 +63,8 @@ async def test_get_file_info_expired(client, test_db, test_upload_dir):
         upload_time=upload_time,
         expiry_time=expiry_time,
         file_path=str(file_path),
-        file_size=15
+        file_size=15,
+        file_md5="dummy_md5_hash_for_testing"
     )
     
     test_db.add(record)

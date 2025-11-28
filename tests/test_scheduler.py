@@ -26,7 +26,8 @@ async def test_cleanup_expired_files(test_db, test_upload_dir):
         upload_time=datetime.utcnow() - timedelta(days=10),
         expiry_time=datetime.utcnow() - timedelta(days=3),
         file_path=str(expired_path),
-        file_size=15
+        file_size=15,
+        file_md5="dummy_md5_expired"
     )
     
     test_db.add(expired_record)
@@ -45,7 +46,8 @@ async def test_cleanup_expired_files(test_db, test_upload_dir):
         upload_time=datetime.utcnow(),
         expiry_time=datetime.utcnow() + timedelta(days=7),
         file_path=str(valid_path),
-        file_size=13
+        file_size=13,
+        file_md5="dummy_md5_valid"
     )
     
     test_db.add(valid_record)
@@ -87,7 +89,8 @@ async def test_cleanup_missing_physical_file(test_db, test_upload_dir):
         upload_time=datetime.utcnow() - timedelta(days=10),
         expiry_time=datetime.utcnow() - timedelta(days=3),
         file_path=str(test_upload_dir / "missing.txt"),
-        file_size=10
+        file_size=10,
+        file_md5="dummy_md5_missing"
     )
     
     test_db.add(record)
@@ -126,7 +129,8 @@ async def test_cleanup_preserves_non_expired(test_db, test_upload_dir):
             upload_time=datetime.utcnow(),
             expiry_time=datetime.utcnow() + timedelta(days=7),
             file_path=str(file_path),
-            file_size=len(f"content {i}")
+            file_size=len(f"content {i}"),
+            file_md5=f"dummy_md5_{i}"
         )
         
         test_db.add(record)

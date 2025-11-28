@@ -50,7 +50,7 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 
-def generate_share_code(length: int = 8) -> str:
+def generate_share_code(length: int = 6) -> str:
     """
     Generate a random share code for file access.
     
