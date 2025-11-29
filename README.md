@@ -10,6 +10,10 @@ A secure, simple file sharing application. Upload files, get a 6-digit code, and
 - **Efficient**: MD5 deduplication saves storage space.
 - **Modern UI**: Clean, Apple-style interface.
 
+## 🎯 Planned Features
+
+- **Frontend MD5 Calculation**: Calculate file MD5 on client side to avoid duplicate uploads and reduce server traffic.
+
 ## 🚀 Quick Start
 
 ### Using Docker (Recommended)
@@ -43,6 +47,7 @@ Set these in `.env` or `docker-compose.yml`:
 - **Frontend**: Vanilla HTML/JS (Jinja2)
 - **Database**: SQLite (Async)
 - **Task Queue**: APScheduler
+
 
 ## 📄 License
 
