@@ -2,7 +2,7 @@
 import io
 import pytest
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 
 from app.models import FileRecord
@@ -48,7 +48,7 @@ async def test_get_file_info_expired(client, test_db, test_upload_dir):
     from app.utils.security import generate_share_code
     
     share_code = generate_share_code()
-    upload_time = datetime.utcnow() - timedelta(days=10)
+    upload_time = datetime.now(timezone.utc) - timedelta(days=10)
     expiry_time = upload_time + timedelta(days=7)
     
     # Create file
@@ -75,6 +75,36 @@ async def test_get_file_info_expired(client, test_db, test_upload_dir):
     
     assert response.status_code == 410
     assert "expired" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_get_file_info_file_missing_on_disk(client, test_db, test_upload_dir):
+    """Test file info retrieval when physical file is missing."""
+    from app.utils.security import generate_share_code
+    
+    share_code = generate_share_code()
+    
+    # Create record but no physical file
+    record = FileRecord(
+        filename="missing.txt",
+        original_filename="missing.txt",
+        share_code=share_code,
+        uploader_ip="127.0.0.1",
+        upload_time=datetime.now(timezone.utc),
+        expiry_time=datetime.now(timezone.utc) + timedelta(days=7),
+        file_path=str(test_upload_dir / "nonexistent.txt"),
+        file_size=100,
+        file_md5="missing_md5"
+    )
+    
+    test_db.add(record)
+    await test_db.commit()
+    
+    # Try to get info
+    response = await client.get(f"/api/file/{share_code}")
+    
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -130,7 +160,7 @@ async def test_download_expired_file(client, test_db, test_upload_dir):
     from app.utils.security import generate_share_code
     
     share_code = generate_share_code()
-    upload_time = datetime.utcnow() - timedelta(days=10)
+    upload_time = datetime.now(timezone.utc) - timedelta(days=10)
     expiry_time = upload_time + timedelta(days=7)
     
     # Create file
@@ -145,7 +175,8 @@ async def test_download_expired_file(client, test_db, test_upload_dir):
         upload_time=upload_time,
         expiry_time=expiry_time,
         file_path=str(file_path),
-        file_size=7
+        file_size=7,
+        file_md5="dummy_md5_expired_download"
     )
     
     test_db.add(record)
@@ -155,4 +186,37 @@ async def test_download_expired_file(client, test_db, test_upload_dir):
     response = await client.get(f"/api/download/{share_code}")
     
     assert response.status_code == 410
-    assert "expired" in (await response.json())["detail"].lower()
+    assert "expired" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_download_file_missing_on_disk(client, test_db, test_upload_dir):
+    """Test download when physical file is missing."""
+    from app.utils.security import generate_share_code
+    
+    share_code = generate_share_code()
+    
+    # Create record but no physical file
+    record = FileRecord(
+        filename="missing_download.txt",
+        original_filename="missing_download.txt",
+        share_code=share_code,
+        uploader_ip="127.0.0.1",
+        upload_time=datetime.now(timezone.utc),
+        expiry_time=datetime.now(timezone.utc) + timedelta(days=7),
+        file_path=str(test_upload_dir / "nonexistent_download.txt"),
+        file_size=100,
+        file_md5="missing_download_md5"
+    )
+    
+    test_db.add(record)
+    await test_db.commit()
+    
+    # Try to download
+    response = await client.get(f"/api/download/{share_code}")
+    
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+

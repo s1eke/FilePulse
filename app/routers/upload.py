@@ -3,7 +3,7 @@ import os
 import asyncio
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict
 from fastapi import APIRouter, UploadFile, File, Depends, Request, HTTPException
@@ -87,7 +87,7 @@ async def upload_file(
         if not result.scalar_one_or_none():
             break
     
-    upload_time = datetime.utcnow()
+    upload_time = datetime.now(timezone.utc)
     expiry_time = upload_time + timedelta(days=settings.file_expiry_days)
     
     # If duplicate exists, reuse the file path
@@ -97,7 +97,11 @@ async def upload_file(
         
         # Update expiry_time of existing file to the latest
         # This keeps the physical file until ALL shares expire
-        if expiry_time > existing_record.expiry_time:
+        existing_expiry = existing_record.expiry_time
+        if existing_expiry.tzinfo is None:
+            existing_expiry = existing_expiry.replace(tzinfo=timezone.utc)
+            
+        if expiry_time > existing_expiry:
             stmt = update(FileRecord).where(
                 FileRecord.file_md5 == file_md5
             ).values(expiry_time=expiry_time)

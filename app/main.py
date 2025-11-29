@@ -94,30 +94,38 @@ app.include_router(download.router)
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Render homepage with server config injected."""
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "max_file_size": settings.max_file_size,
-        "file_expiry_days": settings.file_expiry_days
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "max_file_size": settings.max_file_size,
+            "file_expiry_days": settings.file_expiry_days
+        }
+    )
 
 
 @app.get("/download.html", response_class=HTMLResponse)
 async def download_page(request: Request):
     """Render download page."""
-    return templates.TemplateResponse("download.html", {
-        "request": request
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="download.html",
+        context={}
+    )
 
 
 # Legacy static file routes (redirects)
 @app.get("/index.html", response_class=HTMLResponse)
 async def index_redirect(request: Request):
     """Redirect to homepage."""
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "max_file_size": settings.max_file_size,
-        "file_expiry_days": settings.file_expiry_days
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "max_file_size": settings.max_file_size,
+            "file_expiry_days": settings.file_expiry_days
+        }
+    )
 
 # Mount static files
 static_dir = Path(__file__).parent / "static"

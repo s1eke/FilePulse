@@ -157,3 +157,59 @@ async def test_upload_date_based_storage(client, test_db, test_upload_dir, sampl
     assert file_path.parts[-4].isdigit()  # Year
     assert file_path.parts[-3].isdigit()  # Month
     assert file_path.parts[-2].isdigit()  # Day
+
+
+@pytest.mark.asyncio
+async def test_upload_md5_deduplication(client, test_db, test_upload_dir, sample_file):
+    """Test that duplicate files share the same physical file."""
+    with open(sample_file, "rb") as f:
+        file_content = f.read()
+    
+    # Upload file twice
+    files1 = {"file": ("file1.txt", io.BytesIO(file_content), "text/plain")}
+    response1 = await client.post("/api/upload", files=files1)
+    share_code1 = response1.json()["share_code"]
+    
+    files2 = {"file": ("file2.txt", io.BytesIO(file_content), "text/plain")}
+    response2 = await client.post("/api/upload", files=files2)
+    share_code2 = response2.json()["share_code"]
+    
+    # Get both records
+    stmt1 = select(FileRecord).where(FileRecord.share_code == share_code1)
+    result1 = await test_db.execute(stmt1)
+    record1 = result1.scalar_one_or_none()
+    
+    stmt2 = select(FileRecord).where(FileRecord.share_code == share_code2)
+    result2 = await test_db.execute(stmt2)
+    record2 = result2.scalar_one_or_none()
+    
+    # Should have same MD5 and file_path (deduplication)
+    assert record1.file_md5 == record2.file_md5
+    assert record1.file_path == record2.file_path
+    
+    # But different share codes
+    assert record1.share_code != record2.share_code
+
+
+@pytest.mark.asyncio
+async def test_upload_with_debug_logging(client, test_upload_dir, sample_file):
+    """Test debug logging when debug mode is enabled."""
+    from app.config import settings
+    original_debug = settings.debug
+    settings.debug = True
+    
+    try:
+        with open(sample_file, "rb") as f:
+            file_content = f.read()
+        
+        files = {"file": ("debug_test.txt", io.BytesIO(file_content), "text/plain")}
+        response = await client.post("/api/upload", files=files)
+        
+        # Should still succeed with debug logging
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+    finally:
+        settings.debug = original_debug
+
+
+

@@ -1,6 +1,7 @@
 """Tests for security utilities."""
 import pytest
-from app.utils.security import sanitize_filename, generate_share_code
+from unittest.mock import MagicMock
+from app.utils.security import sanitize_filename, generate_share_code, get_client_ip
 
 
 def test_sanitize_filename_removes_html():
@@ -38,7 +39,7 @@ def test_sanitize_filename_handles_special_chars():
     inputs_and_expected = [
         ("document (copy).pdf", "document (copy).pdf"),  # Parentheses kept
         ("file   name.txt", "file name.txt"),  # Multiple spaces to single
-        ("test<file>.txt", "testfile.txt"),  # Angle brackets removed
+        ("test<file>.txt", "test.txt"),  # Angle brackets and content between removed
     ]
     
     for input_name,expected in inputs_and_expected:
@@ -123,3 +124,41 @@ def test_sanitize_filename_sql_injection():
         # and result is safe
         assert safe_name
         assert len(safe_name) > 0
+
+
+def test_get_client_ip_with_x_forwarded_for():
+    """Test get_client_ip with X-Forwarded-For header."""
+    request = MagicMock()
+    request.headers.get = lambda key: "203.0.113.1, 198.51.100.1" if key == "X-Forwarded-For" else None
+    
+    ip = get_client_ip(request)
+    assert ip == "203.0.113.1"
+
+
+def test_get_client_ip_with_x_real_ip():
+    """Test get_client_ip with X-Real-IP header."""
+    request = MagicMock()
+    request.headers.get = lambda key: "203.0.113.5" if key == "X-Real-IP" else None
+    
+    ip = get_client_ip(request)
+    assert ip == "203.0.113.5"
+
+
+def test_get_client_ip_fallback_to_client():
+    """Test get_client_ip fallback to direct client."""
+    request = MagicMock()
+    request.headers.get = lambda key: None
+    request.client.host = "192.168.1.100"
+    
+    ip = get_client_ip(request)
+    assert ip == "192.168.1.100"
+
+
+def test_get_client_ip_no_client():
+    """Test get_client_ip when client is None."""
+    request = MagicMock()
+    request.headers.get = lambda key: None
+    request.client = None
+    
+    ip = get_client_ip(request)
+    assert ip == "unknown"

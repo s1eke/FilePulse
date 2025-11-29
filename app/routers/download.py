@@ -1,6 +1,6 @@
 """Download router with progress tracking."""
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -41,7 +41,12 @@ async def get_file_info(
         raise HTTPException(status_code=404, detail="File not found")
     
     # Check if file is expired
-    if file_record.expiry_time < datetime.utcnow():
+    # Check if file is expired
+    expiry_check = file_record.expiry_time
+    if expiry_check.tzinfo is None:
+        expiry_check = expiry_check.replace(tzinfo=timezone.utc)
+        
+    if expiry_check < datetime.now(timezone.utc):
         raise HTTPException(status_code=410, detail="File has expired")
     
     # Check if file exists on disk
@@ -82,7 +87,11 @@ async def download_file(
         raise HTTPException(status_code=404, detail="File not found")
     
     # Check if file is expired
-    if file_record.expiry_time < datetime.utcnow():
+    expiry_check = file_record.expiry_time
+    if expiry_check.tzinfo is None:
+        expiry_check = expiry_check.replace(tzinfo=timezone.utc)
+        
+    if expiry_check < datetime.now(timezone.utc):
         raise HTTPException(status_code=410, detail="File has expired")
     
     # Check if file exists on disk

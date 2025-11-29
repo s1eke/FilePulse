@@ -1,5 +1,5 @@
 """Database models for file records."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import String, Integer, DateTime, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,8 +17,8 @@ class FileRecord(Base):
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     share_code: Mapped[str] = mapped_column(String(6), unique=True, nullable=False, index=True)
     uploader_ip: Mapped[str] = mapped_column(String(45), nullable=False)  # IPv6 max length
-    upload_time: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    expiry_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    upload_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    expiry_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
     file_md5: Mapped[str] = mapped_column(String(32), nullable=False, index=True)  # MD5 hash
@@ -34,7 +34,7 @@ class FileRecord(Base):
         if 'expiry_time' not in kwargs and 'upload_time' in kwargs:
             kwargs['expiry_time'] = kwargs['upload_time'] + timedelta(days=settings.file_expiry_days)
         elif 'expiry_time' not in kwargs:
-            upload_time = datetime.utcnow()
+            upload_time = datetime.now(timezone.utc)
             kwargs['upload_time'] = upload_time
             kwargs['expiry_time'] = upload_time + timedelta(days=settings.file_expiry_days)
         super().__init__(**kwargs)
