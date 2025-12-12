@@ -4,17 +4,15 @@ FROM python:3.13-slim AS builder
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN sed -i 's@//[^/]*/debian@//mirrors.aliyun.com/debian@g' /etc/apt/sources.list.d/debian.sources && \
-    apt-get update && apt-get install -y \
-    gcc && \
-    rm -rf /var/lib/apt/lists/*
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Copy requirements
-COPY requirements.txt .
+# Copy project files
+COPY pyproject.toml uv.lock* ./
 
-# Install Python dependencies using Tencent PyPI mirror
-RUN pip install --no-cache-dir --user -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple
+# Install Python dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev
 
 
 # Final stage
@@ -27,11 +25,14 @@ RUN sed -i 's@//[^/]*/debian@//mirrors.aliyun.com/debian@g' /etc/apt/sources.lis
     apt-get update && apt-get upgrade -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
+# Copy uv from builder
+COPY --from=builder /bin/uv /bin/uvx /bin/
 
-# Make sure scripts in .local are usable
-ENV PATH=/root/.local/bin:$PATH
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
+
+# Make sure scripts in .venv are usable
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy application code
 COPY app/ ./app/

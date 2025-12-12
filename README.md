@@ -28,8 +28,9 @@ Visit `http://localhost:8000` to start sharing.
 
 ### Manual Setup
 
-1.  Install dependencies: `pip install -r requirements.txt`
-2.  Run server: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
+1.  Install uv: `pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`
+2.  Install dependencies: `uv sync`
+3.  Run server: `uv run uvicorn app.main:app --host 0.0.0.0 --port 8000`
 
 ## ⚙️ Configuration
 
